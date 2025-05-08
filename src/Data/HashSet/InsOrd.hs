@@ -123,7 +123,6 @@ instance (Eq k, Hashable k) => Semigroup (InsOrdHashSet k) where
 
 instance (Eq k, Hashable k) => Monoid (InsOrdHashSet k) where
     mempty = empty
-    mappend = union
 
 instance Foldable InsOrdHashSet where
     -- in newer base only

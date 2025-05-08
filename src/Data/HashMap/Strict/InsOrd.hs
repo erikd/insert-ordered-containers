@@ -93,7 +93,7 @@ import Data.Functor.WithIndex          (FunctorWithIndex (..))
 import Data.Hashable                   (Hashable (..))
 import Data.List                       (nub, sortBy)
 import Data.Maybe                      (fromMaybe)
-import Data.Monoid                     (Monoid, mappend, mempty)
+import Data.Monoid                     (Monoid, mempty)
 import Data.Ord                        (comparing)
 import Data.Semigroup                  (Semigroup (..))
 import Data.Traversable                (Traversable (traverse))
@@ -202,7 +202,6 @@ instance (Eq k, Hashable k) => Semigroup (InsOrdHashMap k v) where
 
 instance (Eq k, Hashable k) => Monoid (InsOrdHashMap k v) where
     mempty = empty
-    mappend = union
 
 -- We cannot derive this, as we want to ordered folding and traversing
 instance Foldable (InsOrdHashMap k) where
