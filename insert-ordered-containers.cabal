@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               insert-ordered-containers
-version:            0.2.6
+version:            0.2.7
 synopsis:
   Associative containers retaining insertion order for traversals.
 
