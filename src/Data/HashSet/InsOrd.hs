@@ -93,7 +93,7 @@ data InsOrdHashSet k = InsOrdHashSet
     { _getIndex        :: !Int
     , getInsOrdHashSet :: !(HashMap k Int)
     }
-    deriving (Typeable, Data)
+    deriving (Data)
 
 -- | @since 0.2.5
 instance NFData k => NFData (InsOrdHashSet k) where
@@ -123,7 +123,6 @@ instance (Eq k, Hashable k) => Semigroup (InsOrdHashSet k) where
 
 instance (Eq k, Hashable k) => Monoid (InsOrdHashSet k) where
     mempty = empty
-    mappend = union
 
 instance Foldable InsOrdHashSet where
     -- in newer base only

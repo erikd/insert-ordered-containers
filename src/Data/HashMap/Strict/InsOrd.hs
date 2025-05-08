@@ -84,7 +84,7 @@ import Prelude
 import Control.Applicative             (Applicative, Const (..))
 import Control.Arrow                   (first, second)
 import Control.DeepSeq                 (NFData (..))
-import Data.Data                       (Data, Typeable)
+import Data.Data                       (Data)
 import Data.Foldable                   (Foldable (foldMap))
 import Data.Foldable.WithIndex         (FoldableWithIndex (..))
 import Data.Functor.Apply              (Apply (..))
@@ -93,7 +93,7 @@ import Data.Functor.WithIndex          (FunctorWithIndex (..))
 import Data.Hashable                   (Hashable (..))
 import Data.List                       (nub, sortBy)
 import Data.Maybe                      (fromMaybe)
-import Data.Monoid                     (Monoid, mappend, mempty)
+import Data.Monoid                     (Monoid, mempty)
 import Data.Ord                        (comparing)
 import Data.Semigroup                  (Semigroup (..))
 import Data.Traversable                (Traversable (traverse))
@@ -128,7 +128,7 @@ import Data.HashMap.InsOrd.Internal
 -------------------------------------------------------------------------------
 
 data P a = P !Int !a
-    deriving (Functor, Foldable, Traversable, Typeable, Data)
+    deriving (Functor, Foldable, Traversable, Data)
 
 instance NFData a => NFData (P a) where
     rnf (P _ a) = rnf a
@@ -168,7 +168,7 @@ data InsOrdHashMap k v = InsOrdHashMap
     { _getIndex        :: !Int
     , getInsOrdHashMap :: !(HashMap k (P v))
     }
-    deriving (Functor, Typeable, Data)
+    deriving (Functor, Data)
 
 -- | @since 0.2.5
 instance (NFData k, NFData v) => NFData (InsOrdHashMap k v) where
@@ -202,7 +202,6 @@ instance (Eq k, Hashable k) => Semigroup (InsOrdHashMap k v) where
 
 instance (Eq k, Hashable k) => Monoid (InsOrdHashMap k v) where
     mempty = empty
-    mappend = union
 
 -- We cannot derive this, as we want to ordered folding and traversing
 instance Foldable (InsOrdHashMap k) where
