@@ -93,7 +93,7 @@ data InsOrdHashSet k = InsOrdHashSet
     { _getIndex        :: !Int
     , getInsOrdHashSet :: !(HashMap k Int)
     }
-    deriving (Typeable, Data)
+    deriving (Data)
 
 -- | @since 0.2.5
 instance NFData k => NFData (InsOrdHashSet k) where
