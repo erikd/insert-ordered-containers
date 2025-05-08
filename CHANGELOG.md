@@ -1,4 +1,4 @@
-- 0.2.6
+- 0.2.7
     - Support GHC-8.6.5...9.12.1
     - Haskell code modernisation
 
