@@ -49,7 +49,7 @@ import Prelude
 
 import Control.Arrow                   (first)
 import Control.DeepSeq                 (NFData (..))
-import Data.Data                       (Data, Typeable)
+import Data.Data                       (Data)
 import Data.Foldable                   (Foldable (foldMap), all)
 import Data.Hashable                   (Hashable (..))
 import Data.List                       (nub, sortBy)
