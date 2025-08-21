@@ -2,3 +2,49 @@ packages: .
 
 tests: True
 test-show-details: direct
+
+if impl (ghc >= 9.14)
+  allow-newer:
+    , aeson:containers
+    , aeson:template-haskell
+    , aeson:witherable
+    , assoc:base
+    , bifunctors:template-haskell
+    , binary:containers
+    , data-fix:base
+    , free:template-haskell
+    , generically:base
+    , hashable:base
+    , hashable:containers
+    , hashable:ghc-bignum
+    , indexed-traversable:base
+    , indexed-traversable:containers
+    , indexed-traversable-instances:base
+    , integer-conversion:base
+    , integer-logarithms:base
+    , integer-logarithms:ghc-bignum
+    , lens:template-haskell
+    , OneTuple:base
+    , optics-core:containers
+    , optics-extra:containers
+    , parallel:base
+    , parallel:containers
+    , primitive:base
+    , tagged:template-haskell
+    , scientific:base
+    , scientific:containers
+    , scientific:template-haskell
+    , semialign:base
+    , semialign:containers
+    , splitmix:base
+    , text-short:base
+    , text-short:template-haskell
+    , th-compat:template-haskell
+    , th-abstraction:template-haskell
+    , time-compat:base
+    , these:base
+    , unordered-containers:template-haskell
+    , uuid-types:template-haskell
+    , vector:base
+    , vector-stream:base
+    , witherable:containers
