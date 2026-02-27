@@ -3,26 +3,24 @@ packages: .
 tests: True
 test-show-details: direct
 
+-- Force newest version to make sure its checked in CI.
+constraints:
+  , QuickCheck >= 2.18
+
 -- cabal-allow-newer
 if impl (ghc >= 9.14)
   allow-newer:
+    , aeson:QuickCheck
     , aeson:containers
     , aeson:semialign
     , aeson:template-haskell
-    , aeson:time-compat
     , aeson:uuid-types
     , binary:containers
     , indexed-traversable:base
     , indexed-traversable:containers
     , indexed-traversable-instances:base
     , insert-ordered-containers:aeson
-    , insert-ordered-containers:indexed-traversable
-    , insert-ordered-containers:optics-core
-    , insert-ordered-containers:optics-extra
-    , optics-core:containers
-    , optics-extra:containers
     , semialign:base
     , semialign:containers
     , these:base
-    , time-compat:base
     , uuid-types:template-haskell
