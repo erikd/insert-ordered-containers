@@ -1,3 +1,9 @@
+- 0.3.0
+    - Fix ordering when decoding from JSON (with tests)
+      https://github.com/erikd/insert-ordered-containers/issues/7
+      This is a breaking change.
+    - GHC-9.14.1 support
+
 - 0.2.7
     - Support GHC-8.6.5...9.12.1
     - Haskell code modernisation
