@@ -109,7 +109,6 @@ import Control.Monad.Trans.State.Strict (State, runState, state)
 
 import qualified Control.Lens        as Lens
 import qualified Data.Aeson          as A
-import qualified Data.Aeson.Encoding as E
 import qualified Data.Aeson.Types    as A
 import qualified Data.Foldable       as F
 import qualified Optics.At           as Optics
