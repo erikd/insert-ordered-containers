@@ -29,6 +29,7 @@ main = defaultMain $ testGroup "tests"
         , testProperty "Hashable agree" $ hashableProperty
         , testProperty "aeson roundtrip" $ aesonRoundtrip
         , testProperty "show . read = id" showReadRoundtrip
+        , testProperty "Eq respects ordering" eqRespectsOrdering
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
@@ -148,6 +149,12 @@ showReadRoundtrip op = rhs === lhs
     iom = evalOpInsOrd op
     rhs = Just iom
     lhs = readMaybe $ show iom
+
+eqRespectsOrdering :: Operation Int Int -> Property
+eqRespectsOrdering op = iom == iomRev ==> InsOrd.toList iom === InsOrd.toList iomRev
+  where
+    iom = evalOpInsOrd op
+    iomRev = InsOrd.fromList . reverse . InsOrd.toList $ iom
 
 -------------------------------------------------------------------------------
 -- Regressions

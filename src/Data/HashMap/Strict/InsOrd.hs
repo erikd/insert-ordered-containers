@@ -110,6 +110,7 @@ import Control.Monad.Trans.State.Strict (State, runState, state)
 import qualified Control.Lens        as Lens
 import qualified Data.Aeson          as A
 import qualified Data.Aeson.Encoding as E
+import qualified Data.Aeson.Types    as A
 import qualified Data.Foldable       as F
 import qualified Optics.At           as Optics
 import qualified Optics.Core         as Optics
@@ -183,7 +184,7 @@ instance NF.NFData2 InsOrdHashMap  where
     liftRnf2 rnf1 rnf2 (InsOrdHashMap _ m) = NF.liftRnf2 rnf1 (NF.liftRnf rnf2) m
 
 instance (Eq k, Eq v) => Eq (InsOrdHashMap k v) where
-    InsOrdHashMap _ a == InsOrdHashMap _ b = a == b
+    a == b = toList a == toList b
 
 instance (Show k, Show v) => Show (InsOrdHashMap k v) where
     showsPrec d m = showParen (d > 10) $
@@ -238,25 +239,37 @@ instance (Eq k, Hashable k) => Exts.IsList (InsOrdHashMap k v) where
 -- Aeson
 -------------------------------------------------------------------------------
 
-instance (A.ToJSONKey k) => A.ToJSON1 (InsOrdHashMap k) where
-    liftToJSON _ t _ = case A.toJSONKey :: A.ToJSONKeyFunction k of
-      A.ToJSONKeyText f _ -> A.object . fmap (\(k, v) -> (f k, t v)) . toList
-      A.ToJSONKeyValue f _ -> A.toJSON . fmap (\(k,v) -> A.toJSON (f k, t v)) . toList
+instance A.ToJSON2 InsOrdHashMap where
+  liftToJSON2 omitKey encodeKey encodeKeyList omitVal encodeVal encodeValList =
+    A.liftToJSON omitNothing encodeKVPair encodeKVPairList . toList
+    where
+      omitNothing _ = False
+      encodeKVPair = A.liftToJSON2 omitKey encodeKey encodeKeyList omitVal encodeVal encodeValList
+      encodeKVPairList = A.listValue encodeKVPair
+  liftToEncoding2 omitKey encodeKey encodeKeyList omitVal encodeVal encodeValList =
+    A.liftToEncoding omitNothing encodeKVPair encodeKVPairList . toList
+    where
+      omitNothing _ = False
+      encodeKVPair = A.liftToEncoding2 omitKey encodeKey encodeKeyList omitVal encodeVal encodeValList
+      encodeKVPairList = A.listEncoding encodeKVPair
 
-    liftToEncoding o t _ = case A.toJSONKey :: A.ToJSONKeyFunction k of
-      A.ToJSONKeyText _ f ->  E.dict f t foldrWithKey
-      A.ToJSONKeyValue _ f -> E.list (A.liftToEncoding2 (const False) f (E.list f) o t (E.list t)) . toList
+instance (A.ToJSON k) => A.ToJSON1 (InsOrdHashMap k) where
+    liftToJSON = A.liftToJSON2 A.omitField A.toJSON A.toJSONList
+    liftToEncoding = A.liftToEncoding2 A.omitField A.toEncoding A.toEncodingList
 
-instance (A.ToJSONKey k, A.ToJSON v) => A.ToJSON (InsOrdHashMap k v) where
+instance (A.ToJSON k, A.ToJSON v) => A.ToJSON (InsOrdHashMap k v) where
     toJSON = A.toJSON1
     toEncoding = A.toEncoding1
 
 -------------------------------------------------------------------------------
 
-instance (Eq k, Hashable k, A.FromJSONKey k) => A.FromJSON1 (InsOrdHashMap k) where
-    liftParseJSON o p pl v = fromList . HashMap.toList <$> A.liftParseJSON o p pl v
+instance (Eq k, Hashable k, A.FromJSON k) => A.FromJSON1 (InsOrdHashMap k) where
+    liftParseJSON o p pl v = fromList  <$> A.liftParseJSON Nothing pkv plkv v
+      where
+        pkv = A.liftParseJSON2 A.omittedField A.parseJSON A.parseJSONList o p pl
+        plkv = A.listParser pkv
 
-instance (Eq k, Hashable k, A.FromJSONKey k, A.FromJSON v) => A.FromJSON (InsOrdHashMap k v) where
+instance (Eq k, Hashable k, A.FromJSON k, A.FromJSON v) => A.FromJSON (InsOrdHashMap k v) where
     parseJSON = A.parseJSON1
 
 -------------------------------------------------------------------------------
