@@ -1,41 +1,36 @@
-{-# LANGUAGE GADTs #-}
 module Data.HashMap.InsOrd.Internal where
 
 import Prelude hiding (filter, foldr, lookup, map, null)
 
-import Control.Applicative ((<**>))
+import Data.List (sortBy)
+import Data.Ord  (comparing)
+
+import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.IntMap.Strict  as IntMap
 
 -------------------------------------------------------------------------------
--- SortedAp
+-- Ordered traversal
 -------------------------------------------------------------------------------
 
--- Sort using insertion sort
--- Hopefully it's fast enough for where we need it
--- otherwise: https://gist.github.com/treeowl/9621f58d55fe0c4f9162be0e074b1b29
--- http://elvishjerricco.github.io/2017/03/23/applicative-sorting.html also related
+-- | Traverse a 'HashMap', sequencing effects in ascending order of the given
+-- index rather than in the map's internal order. The result has the same
+-- keys as the input. The index must be distinct for every entry.
+--
+-- O(n log n): sort the entries by index and traverse that list, then look
+-- each result up by its index. (This replaces an insertion-sorting free
+-- applicative, which was O(n^2).)
+traverseWithKeyOrderedBy
+    :: Applicative f
+    => (a -> Int) -> (k -> a -> f b) -> HashMap k a -> f (HashMap k b)
+traverseWithKeyOrderedBy ix f m =
+    refill <$> traverse g (sortBy (comparing fst) [(ix a, (k, a)) | (k, a) <- HashMap.toList m])
+  where
+    g (i, (k, a)) = (,) i <$> f k a
 
--- Free applicative which re-orders effects
--- Mostly from Edward Kmett's `free` package.
-data SortedAp f a where
-    Pure :: a -> SortedAp f a
-    SortedAp   :: !Int -> f a -> SortedAp f (a -> b) -> SortedAp f b
-
-instance Functor (SortedAp f) where
-    fmap f (Pure a)   = Pure (f a)
-    fmap f (SortedAp i x y)   = SortedAp i x ((f .) <$> y)
-
-instance Applicative (SortedAp f) where
-    pure = Pure
-    Pure f <*> y = fmap f y
-    -- This is different from real Ap
-    f <*> Pure y = fmap ($ y) f
-    f@(SortedAp i x y) <*> z@(SortedAp j u v)
-        | i < j     = SortedAp i x (flip <$> y <*> z)
-        | otherwise = SortedAp j u ((.) <$> f <*> v)
-
-liftSortedAp :: Int -> f a -> SortedAp f a
-liftSortedAp i x = SortedAp i x (Pure id)
-
-retractSortedAp :: Applicative f => SortedAp f a -> f a
-retractSortedAp (Pure x) = pure x
-retractSortedAp (SortedAp _ f x) = f <**> retractSortedAp x
+    -- Results come back in ascending index order. We reuse m's structure rather
+    -- than rebuilding with 'fromList', since that would need 'Hashable k', which
+    -- the 'Traversable' instance can't require.
+    refill rs =
+        let im = IntMap.fromDistinctAscList rs
+        in HashMap.map (\a -> im IntMap.! ix a) m

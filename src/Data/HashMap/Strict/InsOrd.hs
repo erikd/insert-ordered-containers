@@ -482,8 +482,8 @@ foldMapWithKey :: Monoid m => (k -> a -> m) -> InsOrdHashMap k a -> m
 foldMapWithKey f = foldMap (uncurry f) . toList
 
 traverseWithKey :: Applicative f => (k -> a -> f b) -> InsOrdHashMap k a -> f (InsOrdHashMap k b)
-traverseWithKey f (InsOrdHashMap n m) = InsOrdHashMap n <$> retractSortedAp
-    (HashMap.traverseWithKey (\k (P i v) -> liftSortedAp i (P i <$> f k v)) m)
+traverseWithKey f (InsOrdHashMap n m) = InsOrdHashMap n <$>
+    traverseWithKeyOrderedBy getPK (\k (P i v) -> P i <$> f k v) m
 
 -------------------------------------------------------------------------------
 -- Unordered
@@ -636,15 +636,10 @@ toHashMap (InsOrdHashMap _ m) = fmap getPV m
 -- Internal
 -------------------------------------------------------------------------------
 
--- TODO: more efficient way is to do two traversals
--- - collect the indexes
--- - pack the indexes (Map old new)
--- - traverse second time, changing the indexes
 fromHashMapP :: HashMap k (P v) -> InsOrdHashMap k v
-fromHashMapP = mk . flip runState 0 . retractSortedAp . traverse f
+fromHashMapP = mk . flip runState 0 . traverseWithKeyOrderedBy getPK (\_ (P _ v) -> newP v)
   where
     mk (m, i) = InsOrdHashMap i m
-    f (P i v) = liftSortedAp i (newP v)
 
 -- | Test if the internal map structure is valid.
 valid :: InsOrdHashMap k v -> Bool
