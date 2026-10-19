@@ -43,7 +43,7 @@ module Data.HashSet.InsOrd (
     )where
 
 import Prelude
-       (Bool, Eq ((==)), Int, Maybe (..), const, flip, fmap, fst,
+       (Bool, Eq ((==)), Int, Maybe (..), const, flip, fmap, fst, id,
        maybe, otherwise, return, snd, ($), (&&), (+), (.), (<$), (<$>), (<),
        (>), (>=), (||))
 
@@ -309,10 +309,9 @@ toHashSet (InsOrdHashSet _ m) =
 -------------------------------------------------------------------------------
 
 fromHashMapInt :: HashMap k Int -> InsOrdHashSet k
-fromHashMapInt = mk . flip runState 0 . retractSortedAp . traverse f
+fromHashMapInt = mk . flip runState 0 . traverseWithKeyOrderedBy id (\_ _ -> newInt')
   where
     mk (m, i) = InsOrdHashSet i m
-    f i = liftSortedAp i newInt'
 
 newInt :: a -> State Int (a, Int)
 newInt a = state $ \s -> ((a, s), s + 1)

@@ -30,6 +30,7 @@ main = defaultMain $ testGroup "tests"
         , testProperty "aeson roundtrip" $ aesonRoundtrip
         , testProperty "show . read = id" showReadRoundtrip
         , testProperty "Eq respects ordering" eqRespectsOrdering
+        , testProperty "traverseWithKey effects in insertion order" traverseWithKeyOrder
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
@@ -150,11 +151,22 @@ showReadRoundtrip op = rhs === lhs
     rhs = Just iom
     lhs = readMaybe $ show iom
 
+
 eqRespectsOrdering :: Operation Int Int -> Property
 eqRespectsOrdering op = iom == iomRev ==> InsOrd.toList iom === InsOrd.toList iomRev
   where
     iom = evalOpInsOrd op
     iomRev = InsOrd.fromList . reverse . InsOrd.toList $ iom
+
+traverseWithKeyOrder :: Operation Word8 Int -> Property
+traverseWithKeyOrder op =
+    -- effects (which just accumulate key/value pairs here) ran in order:
+    effects === InsOrd.toList iom
+    .&&. InsOrd.toList iom' === [ (k, v + 1) | (k, v) <- InsOrd.toList iom ]
+    .&&. property (InsOrd.valid iom')
+  where
+    iom = evalOpInsOrd op
+    (effects, iom') = InsOrd.traverseWithKey (\k v -> ([(k, v)], v + 1)) iom
 
 -------------------------------------------------------------------------------
 -- Regressions
