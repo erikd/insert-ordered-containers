@@ -1,3 +1,6 @@
+- 0.3.0.1
+    - Fix quadratic behavior in traverseWithKey/for
+
 - 0.3.0
     - Fix ordering when decoding from JSON (with tests)
       https://github.com/erikd/insert-ordered-containers/issues/7
