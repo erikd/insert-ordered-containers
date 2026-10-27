@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -46,7 +45,9 @@ import Prelude
 
 import Control.Arrow                   (first)
 import Control.DeepSeq                 (NFData (..))
-import Data.Data                       (Data)
+import Data.Data
+       (Constr, Data (..), DataType, Fixity (Prefix), gcast1, mkConstr,
+       mkDataType)
 import Data.Foldable                   (Foldable (foldMap), all)
 import Data.Hashable                   (Hashable (..))
 import Data.List                       (nub, sortBy)
@@ -85,7 +86,22 @@ data InsOrdHashSet k = InsOrdHashSet
     { _getIndex        :: !Int
     , getInsOrdHashSet :: !(HashMap k Int)
     }
-    deriving (Data)
+
+-- | Presented as a single virtual constructor @fromList@ applied to the
+-- elements in insertion order.
+instance (Data k, Eq k, Hashable k) => Data (InsOrdHashSet k) where
+    gfoldl f z m   = z fromList `f` toList m
+    toConstr _     = fromListConstr
+    gunfold k z _  = k (z fromList)
+    dataTypeOf _   = insOrdHashSetDataType
+    dataCast1 f    = gcast1 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr insOrdHashSetDataType "fromList" [] Prefix
+
+insOrdHashSetDataType :: DataType
+insOrdHashSetDataType =
+    mkDataType "Data.HashSet.InsOrd.InsOrdHashSet" [fromListConstr]
 
 -- | @since 0.2.5
 instance NFData k => NFData (InsOrdHashSet k) where
