@@ -3,13 +3,13 @@ module Main (main) where
 import Prelude        ()
 import Prelude.Compat
 
-import Control.Lens   (folded, ifolded, (^..), (^@..))
-import Data.Function  (on)
-import Data.Hashable  (Hashable (..))
-import Data.List      (nubBy)
-import Data.Traversable (foldMapDefault)
-import Data.Word      (Word8)
-import Text.Read      (readMaybe)
+import Data.Foldable.WithIndex (ifoldr, itoList)
+import Data.Function           (on)
+import Data.Hashable           (Hashable (..))
+import Data.List               (nubBy)
+import Data.Traversable        (foldMapDefault)
+import Data.Word               (Word8)
+import Text.Read               (readMaybe)
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.HashMap.Strict        as HashMap
@@ -36,8 +36,8 @@ main = defaultMain $ testGroup "tests"
         [ testProperty "issue 10: union overflow" $ issue10
         , testProperty "issue 12 Foldable" $ issue12a
         , testProperty "issue 12 Traversable" $ issue12b
-        , testProperty "issue 12 FoldableWithIndex ^.." $ issue12c
-        , testProperty "issue 12 FoldableWithIndex ^@.." $ issue12d
+        , testProperty "issue 12 FoldableWithIndex ifoldr" $ issue12c
+        , testProperty "issue 12 FoldableWithIndex itoList" $ issue12d
         ]
     ]
 
@@ -173,7 +173,7 @@ traverseWithKeyOrder op =
 -------------------------------------------------------------------------------
 
 issue12a :: Property
-issue12a = (m ^.. folded) === "wold"
+issue12a = foldr (:) [] m === "wold"
   where
     m :: InsOrd.InsOrdHashMap Char Char
     m = InsOrd.fromList  (zip "hello" "world")
@@ -185,20 +185,20 @@ issue12b = foldMapDefault (:[]) m === "wold"
     m = InsOrd.fromList  (zip "hello" "world")
 
 issue12c :: Property
-issue12c = (m ^.. ifolded) === "wold"
+issue12c = ifoldr (\_ v acc -> v : acc) [] m === "wold"
   where
     m :: InsOrd.InsOrdHashMap Char Char
     m = InsOrd.fromList  (zip "hello" "world")
 
 issue12d :: Property
-issue12d = (m ^@.. ifolded) === (zip "helo" "wold")
+issue12d = itoList m === zip "helo" "wold"
   where
     m :: InsOrd.InsOrdHashMap Char Char
     m = InsOrd.fromList  (zip "hello" "world")
 
 
 issue10 :: Property
-issue10 = (p ^.. folded) === "wold!" .&&. property (InsOrd.valid p)
+issue10 = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)
   where
     m, n, p :: InsOrd.InsOrdHashMap Char Char
     m = InsOrd.fromList  (zip "hello" "world")

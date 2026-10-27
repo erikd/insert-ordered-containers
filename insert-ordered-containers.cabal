@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               insert-ordered-containers
-version:            0.3.0.1
+version:            0.4
 synopsis:
   Associative containers retaining insertion order for traversals.
 
@@ -8,6 +8,10 @@ description:
   Associative containers retaining insertion order for traversals.
   .
   The implementation is based on `unordered-containers`.
+  .
+  Instances for the @lens@ and @optics@ type classes live in the
+  companion packages @insert-ordered-containers-lens@ and
+  @insert-ordered-containers-optics@.
 
 category:           Web
 homepage:           https://github.com/erikd/insert-ordered-containers#readme
@@ -49,9 +53,6 @@ library
     , deepseq               >=1.4.4.0  && <1.6
     , hashable              >=1.4.7.0  && <1.6
     , indexed-traversable   >=0.1.4    && <0.2
-    , lens                  >=5.2.3    && <5.4
-    , optics-core           >=0.4.1.1  && <0.5
-    , optics-extra          >=0.4.2.1  && <0.5
     , semigroupoids         >=6.0.1    && <6.1
     , transformers          >=0.5.6.2  && <0.7
     , unordered-containers  >=0.2.20   && <0.3
@@ -75,8 +76,8 @@ test-suite ins-ord-containers-tests
     , base
     , base-compat
     , hashable
+    , indexed-traversable
     , insert-ordered-containers
-    , lens
     , QuickCheck                 >=2.13.2   && <2.20
     , tasty                      >=0.10.1.2 && <1.6
     , tasty-quickcheck           >=0.8.3.2  && <0.12

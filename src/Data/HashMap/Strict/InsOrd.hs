@@ -69,16 +69,13 @@ module Data.HashMap.Strict.InsOrd (
     fromList,
     toHashMap,
     fromHashMap,
-    -- * Lenses
-    hashMap,
-    unorderedTraversal,
     -- * Debugging
     valid,
     ) where
 
 import Prelude
        (Bool (..), Eq, Functor, Int, Maybe (..), all, const, flip, fmap, fst,
-       id, maybe, otherwise, pure, return, snd, uncurry, ($), (&&), (+), (.),
+       id, maybe, otherwise, return, snd, uncurry, ($), (&&), (+), (.),
        (<$>), (<), (==), (>), (>=), (>>=), (||))
 
 import Control.Applicative             (Applicative, Const (..))
@@ -103,16 +100,11 @@ import Text.Read
        (Lexeme (..), Read (..), lexP, parens, readListPrecDefault)
 import Text.Show                       (Show (..), showParen, showString)
 
-import Control.Lens
-       (At (..), Index, Iso, IxValue, Ixed (..), Traversal, _1, _2, iso, (<&>))
 import Control.Monad.Trans.State.Strict (State, runState, state)
 
-import qualified Control.Lens        as Lens
 import qualified Data.Aeson          as A
 import qualified Data.Aeson.Types    as A
 import qualified Data.Foldable       as F
-import qualified Optics.At           as Optics
-import qualified Optics.Core         as Optics
 
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
@@ -284,58 +276,6 @@ instance (Eq k, Hashable k) => TraversableWithIndex k (InsOrdHashMap k) where
     itraverse = traverseWithKey
 
 -------------------------------------------------------------------------------
--- Lens
--------------------------------------------------------------------------------
-
-type instance Index (InsOrdHashMap k v) = k
-type instance IxValue (InsOrdHashMap k v) = v
-
-instance (Eq k, Hashable k) => Ixed (InsOrdHashMap k v) where
-    ix k f m = ixImpl k pure f m
-    {-# INLINABLE ix #-}
-
-ixImpl
-  :: (Eq k, Hashable k, Functor f)
-  => k
-  -> (InsOrdHashMap k v -> f (InsOrdHashMap k v))
-  -> (v -> f v)
-  -> InsOrdHashMap k v
-  -> f (InsOrdHashMap k v)
-ixImpl k point f m = case lookup k m of
-    Just v  -> f v <&> \v' -> insert k v' m
-    Nothing -> point m
-{-# INLINE ixImpl #-}
-
-instance (Eq k, Hashable k) => At (InsOrdHashMap k a) where
-    at k f m = f mv <&> \r -> case r of
-        Nothing -> maybe m (const (delete k m)) mv
-        Just v' -> insert k v' m
-      where mv = lookup k m
-    {-# INLINABLE at #-}
-
--- | This is a slight lie, as roundtrip doesn't preserve ordering.
-hashMap :: Iso (InsOrdHashMap k a) (InsOrdHashMap k b) (HashMap k a) (HashMap k b)
-hashMap = iso toHashMap fromHashMap
-
-unorderedTraversal :: Traversal (InsOrdHashMap k a) (InsOrdHashMap k b) a b
-unorderedTraversal = hashMap . traverse
-
--------------------------------------------------------------------------------
--- Optics
--------------------------------------------------------------------------------
-
-type instance Optics.Index (InsOrdHashMap k v) = k
-type instance Optics.IxValue (InsOrdHashMap k v) = v
-
-instance (Eq k, Hashable k) => Optics.Ixed (InsOrdHashMap k v) where
-    ix k = Optics.atraversalVL $ \point f m -> ixImpl k point f m
-    {-# INLINE ix #-}
-
-instance (Eq k, Hashable k) => Optics.At (InsOrdHashMap k a) where
-    at k = Optics.lensVL $ \f m -> Lens.at k f m
-    {-# INLINE at #-}
-
--------------------------------------------------------------------------------
 -- Construction
 -------------------------------------------------------------------------------
 
@@ -467,7 +407,7 @@ traverseKeys
     :: (Eq k', Hashable k', Applicative f)
     => (k -> f k') -> InsOrdHashMap k v -> f (InsOrdHashMap k' v)
 traverseKeys f (InsOrdHashMap i m) = InsOrdHashMap i . HashMap.fromList <$>
-    (traverse . _1) f (HashMap.toList m)
+    traverse (\(k, v) -> (\k' -> (k', v)) <$> f k) (HashMap.toList m)
 
 map :: (v1 -> v2) -> InsOrdHashMap k v1 -> InsOrdHashMap k v2
 map = fmap
@@ -605,7 +545,7 @@ fromList :: forall k v. (Eq k, Hashable k) => [(k, v)] -> InsOrdHashMap k v
 fromList
     = mk
     . flip runState 0
-    . (traverse . _2) newP
+    . traverse (\(k, v) -> (,) k <$> newP v)
   where
     mk :: ([(k, P v)], Int) -> InsOrdHashMap k v
     mk (m, i) = InsOrdHashMap i (HashMap.fromList m)

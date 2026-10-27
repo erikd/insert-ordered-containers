@@ -1,4 +1,7 @@
-packages: .
+packages:
+  .
+  insert-ordered-containers-lens
+  insert-ordered-containers-optics
 
 tests: True
 test-show-details: direct

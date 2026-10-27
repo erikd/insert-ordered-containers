@@ -8,9 +8,9 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.19.20260104
+# version: 0.19.20261010
 #
-# REGENDATA ("0.19.20260104",["github","cabal.project"])
+# REGENDATA ("0.19.20261010",["github","cabal.project"])
 #
 name: Haskell-CI
 on:
@@ -23,6 +23,8 @@ on:
   merge_group:
     branches:
       - master
+  workflow_dispatch:
+    {}
 jobs:
   linux:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
@@ -30,7 +32,7 @@ jobs:
     timeout-minutes:
       60
     container:
-      image: buildpack-deps:jammy
+      image: buildpack-deps:noble
     continue-on-error: ${{ matrix.allow-failure }}
     strategy:
       matrix:
@@ -95,7 +97,7 @@ jobs:
       - name: apt-get install
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common
       - name: Install GHCup
         run: |
           mkdir -p "$HOME/.ghcup/bin"
@@ -180,13 +182,15 @@ jobs:
           chmod a+x $HOME/.cabal/bin/cabal-plan
           cabal-plan --version
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: source
       - name: initial cabal.project for sdist
         run: |
           touch cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/." >> cabal.project
+          echo "packages: $GITHUB_WORKSPACE/source/insert-ordered-containers-lens" >> cabal.project
+          echo "packages: $GITHUB_WORKSPACE/source/insert-ordered-containers-optics" >> cabal.project
           cat cabal.project
       - name: sdist
         run: |
@@ -200,20 +204,37 @@ jobs:
         run: |
           PKGDIR_insert_ordered_containers="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/insert-ordered-containers-[0-9.]*')"
           echo "PKGDIR_insert_ordered_containers=${PKGDIR_insert_ordered_containers}" >> "$GITHUB_ENV"
+          PKGDIR_insert_ordered_containers_lens="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/insert-ordered-containers-lens-[0-9.]*')"
+          echo "PKGDIR_insert_ordered_containers_lens=${PKGDIR_insert_ordered_containers_lens}" >> "$GITHUB_ENV"
+          PKGDIR_insert_ordered_containers_optics="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/insert-ordered-containers-optics-[0-9.]*')"
+          echo "PKGDIR_insert_ordered_containers_optics=${PKGDIR_insert_ordered_containers_optics}" >> "$GITHUB_ENV"
           rm -f cabal.project cabal.project.local
           touch cabal.project
           touch cabal.project.local
           echo "packages: ${PKGDIR_insert_ordered_containers}" >> cabal.project
+          echo "packages: ${PKGDIR_insert_ordered_containers_lens}" >> cabal.project
+          echo "packages: ${PKGDIR_insert_ordered_containers_optics}" >> cabal.project
           echo "package insert-ordered-containers" >> cabal.project
+          echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields" >> cabal.project
+          echo "package insert-ordered-containers-lens" >> cabal.project
+          echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields" >> cabal.project
+          echo "package insert-ordered-containers-optics" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields" >> cabal.project
           if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "package insert-ordered-containers" >> cabal.project ; fi
           if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "package insert-ordered-containers-lens" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "package insert-ordered-containers-optics" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
           if [ $((HCNUMVER >= 90000)) -ne 0 ] ; then echo "package insert-ordered-containers" >> cabal.project ; fi
           if [ $((HCNUMVER >= 90000)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
-          if [ $((HCNUMVER >= 91400)) -ne 0 ] ; then echo "allow-newer: *:*" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90000)) -ne 0 ] ; then echo "package insert-ordered-containers-lens" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90000)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90000)) -ne 0 ] ; then echo "package insert-ordered-containers-optics" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90000)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
           cat >> cabal.project <<EOF
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(insert-ordered-containers)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(insert-ordered-containers|insert-ordered-containers-lens|insert-ordered-containers-optics)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan
@@ -221,11 +242,11 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dry-run all
           cabal-plan
       - name: restore cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
+          key: noble-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
-          restore-keys: ${{ runner.os }}-${{ matrix.compiler }}-
+          restore-keys: noble-${{ matrix.compiler }}-
       - name: install dependencies
         run: |
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all
@@ -243,6 +264,10 @@ jobs:
         run: |
           cd ${PKGDIR_insert_ordered_containers} || false
           ${CABAL} -vnormal check
+          cd ${PKGDIR_insert_ordered_containers_lens} || false
+          ${CABAL} -vnormal check
+          cd ${PKGDIR_insert_ordered_containers_optics} || false
+          ${CABAL} -vnormal check
       - name: haddock
         run: |
           $CABAL v2-haddock --disable-documentation --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
@@ -252,7 +277,7 @@ jobs:
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
       - name: save cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
+          key: noble-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
