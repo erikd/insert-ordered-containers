@@ -4,9 +4,8 @@ import Prelude        ()
 import Prelude.Compat
 
 import Data.Foldable.WithIndex (ifoldr, itoList)
-import Data.Function           (on)
 import Data.Hashable           (Hashable (..))
-import Data.List               (nubBy)
+import Data.List               (nub)
 import Data.Traversable        (foldMapDefault)
 import Data.Word               (Word8)
 import Text.Read               (readMaybe)
@@ -14,6 +13,7 @@ import Text.Read               (readMaybe)
 import qualified Data.Aeson                 as Aeson
 import qualified Data.HashMap.Strict        as HashMap
 import qualified Data.HashMap.Strict.InsOrd as InsOrd
+import qualified Data.List                  as List
 
 import Test.QuickCheck.Function
 import Test.Tasty
@@ -22,7 +22,9 @@ import Test.Tasty.QuickCheck
 main :: IO ()
 main = defaultMain $ testGroup "tests"
     [ testGroup "Properties" $
-        [ testProperty "toList . fromList ~= id" $ toListFromList
+        [ testProperty "fromList keeps keys in order of first occurrence" $ fromListKeys
+        , testProperty "fromList keeps the last value of each key" $ fromListValues
+        , testProperty "fromList agrees with repeated insert" $ fromListInsert
         , testProperty "toList distributes over mappend" $ toListMappendDistribute
         , testProperty "behaves like HashMap" $ operationModel
         , testProperty "valid" $ validProperty
@@ -41,9 +43,14 @@ main = defaultMain $ testGroup "tests"
         ]
     ]
 
-toListFromList :: [(Int, Int)] -> Property
-toListFromList l = l' === InsOrd.toList (InsOrd.fromList l)
-  where l' = reverse . nubBy (on (==) fst) .  reverse $ l
+fromListKeys :: [(Word8, Int)] -> Property
+fromListKeys l = InsOrd.keys (InsOrd.fromList l) === nub (map fst l)
+
+fromListValues :: [(Word8, Int)] -> Property
+fromListValues l = InsOrd.toHashMap (InsOrd.fromList l) === HashMap.fromList l
+
+fromListInsert :: [(Word8, Int)] -> Property
+fromListInsert l = InsOrd.fromList l === List.foldl' (\m (k, v) -> InsOrd.insert k v m) InsOrd.empty l
 
 toListMappendDistribute :: [(Int, Int)] -> [(Int, Int)] -> Property
 toListMappendDistribute a b = rhs === lhs
