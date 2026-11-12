@@ -3,10 +3,12 @@ module Main (main) where
 import Prelude        ()
 import Prelude.Compat
 
+import Data.Data               (Data, cast, gmapT)
 import Data.Foldable.WithIndex (ifoldr, itoList)
 import Data.Function           (on)
 import Data.Hashable           (Hashable (..))
 import Data.List               (nubBy)
+import Data.Maybe              (fromMaybe)
 import Data.Traversable        (foldMapDefault)
 import Data.Word               (Word8)
 import Text.Read               (readMaybe)
@@ -14,6 +16,7 @@ import Text.Read               (readMaybe)
 import qualified Data.Aeson                 as Aeson
 import qualified Data.HashMap.Strict        as HashMap
 import qualified Data.HashMap.Strict.InsOrd as InsOrd
+import qualified Data.HashSet.InsOrd        as InsOrdSet
 
 import Test.QuickCheck.Function
 import Test.Tasty
@@ -38,6 +41,8 @@ main = defaultMain $ testGroup "tests"
         , testProperty "issue 12 Traversable" $ issue12b
         , testProperty "issue 12 FoldableWithIndex ifoldr" $ issue12c
         , testProperty "issue 12 FoldableWithIndex itoList" $ issue12d
+        , testProperty "issue 19 Data InsOrdHashMap" $ issue19Map
+        , testProperty "issue 19 Data InsOrdHashSet" $ issue19Set
         ]
     ]
 
@@ -196,6 +201,32 @@ issue12d = itoList m === zip "helo" "wold"
     m :: InsOrd.InsOrdHashMap Char Char
     m = InsOrd.fromList  (zip "hello" "world")
 
+
+-- Apply @f@ to every 'Int' inside a value, bottom-up, like syb's
+-- @everywhere (mkT f)@.
+mapInts :: Data a => (Int -> Int) -> a -> a
+mapInts f = go
+  where
+    go :: Data b => b -> b
+    go x = atInt (gmapT go x)
+
+    atInt :: Data b => b -> b
+    atInt x = fromMaybe x (cast . f =<< cast x)
+
+issue19Map :: [(Int, Int)] -> Property
+issue19Map l = InsOrd.toList m' === expected .&&. property (InsOrd.valid m')
+  where
+    m = InsOrd.fromList l
+    m' = mapInts negate m
+    expected = [ (negate k, negate v) | (k, v) <- InsOrd.toList m ]
+
+issue19Set :: [Int] -> Property
+issue19Set l =
+    InsOrdSet.toList s' === expected .&&. property (InsOrdSet.valid s')
+  where
+    s = InsOrdSet.fromList l
+    s' = mapInts negate s
+    expected = map negate (InsOrdSet.toList s)
 
 issue10 :: Property
 issue10 = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)
