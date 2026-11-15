@@ -75,8 +75,8 @@ module Data.HashMap.Strict.InsOrd (
 
 import Prelude
        (Bool (..), Eq, Functor, Int, Maybe (..), all, const, flip, fmap, fst,
-       id, maybe, otherwise, return, snd, uncurry, ($), (&&), (+), (.),
-       (<$>), (<), (==), (>), (>=), (>>=), (||))
+       id, max, maybe, otherwise, return, seq, snd, uncurry, zipWith, ($),
+       (&&), (+), (.), (<$>), (<), (==), (>), (>=), (>>=), (||))
 
 import Control.Applicative             (Applicative, Const (..))
 import Control.Arrow                   (first, second)
@@ -541,14 +541,25 @@ elems :: InsOrdHashMap k v -> [v]
 elems = fmap snd . toList
 {-# INLINABLE elems #-}
 
-fromList :: forall k v. (Eq k, Hashable k) => [(k, v)] -> InsOrdHashMap k v
-fromList
-    = mk
-    . flip runState 0
-    . traverse (\(k, v) -> (,) k <$> newP v)
+-- | Construct a map from a list of key-value pairs.
+--
+-- If a key occurs more than once, it keeps the position of its first
+-- occurrence and the value of its last.
+--
+-- >>> fromList [(1, 'a'), (2, 'b'), (1, 'c')]
+-- fromList [(1,'c'),(2,'b')]
+fromList :: (Eq k, Hashable k) => [(k, v)] -> InsOrdHashMap k v
+fromList xs = InsOrdHashMap counter m
   where
-    mk :: ([(k, P v)], Int) -> InsOrdHashMap k v
-    mk (m, i) = InsOrdHashMap i (HashMap.fromList m)
+    m = HashMap.fromListWith keepIndex (zipWith indexed [0 ..] xs)
+
+    -- Forcing the P here avoids handing a thunk to fromListWith.
+    indexed i (k, v) = let p = P i v in p `seq` (k, p)
+
+    keepIndex (P _ v) (P i _) = P i v
+
+    counter = HashMap.foldl' (\i (P j _) -> max i (j + 1)) 0 m
+{-# INLINABLE fromList #-}
 
 toList :: InsOrdHashMap k v -> [(k, v)]
 toList
