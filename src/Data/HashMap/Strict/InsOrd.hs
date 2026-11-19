@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFoldable        #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveTraversable     #-}
@@ -81,7 +80,9 @@ import Prelude
 import Control.Applicative             (Applicative, Const (..))
 import Control.Arrow                   (first, second)
 import Control.DeepSeq                 (NFData (..))
-import Data.Data                       (Data)
+import Data.Data
+       (Constr, Data (..), DataType, Fixity (Prefix), gcast1, gcast2, mkConstr,
+       mkDataType)
 import Data.Foldable                   (Foldable (foldMap))
 import Data.Foldable.WithIndex         (FoldableWithIndex (..))
 import Data.Functor.Apply              (Apply (..))
@@ -120,7 +121,7 @@ import Data.HashMap.InsOrd.Internal
 -------------------------------------------------------------------------------
 
 data P a = P !Int !a
-    deriving (Functor, Foldable, Traversable, Data)
+    deriving (Functor, Foldable, Traversable)
 
 instance NFData a => NFData (P a) where
     rnf (P _ a) = rnf a
@@ -160,7 +161,24 @@ data InsOrdHashMap k v = InsOrdHashMap
     { _getIndex        :: !Int
     , getInsOrdHashMap :: !(HashMap k (P v))
     }
-    deriving (Functor, Data)
+    deriving (Functor)
+
+-- | Presented as a single virtual constructor @fromList@ applied to the
+-- entries in insertion order.
+instance (Data k, Data v, Eq k, Hashable k) => Data (InsOrdHashMap k v) where
+    gfoldl f z m   = z fromList `f` toList m
+    toConstr _     = fromListConstr
+    gunfold k z _  = k (z fromList)
+    dataTypeOf _   = insOrdHashMapDataType
+    dataCast1 f    = gcast1 f
+    dataCast2 f    = gcast2 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr insOrdHashMapDataType "fromList" [] Prefix
+
+insOrdHashMapDataType :: DataType
+insOrdHashMapDataType =
+    mkDataType "Data.HashMap.Strict.InsOrd.InsOrdHashMap" [fromListConstr]
 
 -- | @since 0.2.5
 instance (NFData k, NFData v) => NFData (InsOrdHashMap k v) where
