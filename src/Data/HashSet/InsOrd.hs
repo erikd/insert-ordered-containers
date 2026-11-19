@@ -111,8 +111,10 @@ instance NFData k => NFData (InsOrdHashSet k) where
 instance NF.NFData1 InsOrdHashSet where
     liftRnf rnf1 (InsOrdHashSet _ m) = NF.liftRnf2 rnf1 rnf m
 
+-- | Compares elements in insertion order; the absolute values of the
+-- internal insertion stamps are ignored.
 instance Eq k => Eq (InsOrdHashSet k) where
-    InsOrdHashSet _ a == InsOrdHashSet _ b = a == b
+    a == b = toList a == toList b
 
 instance Show k => Show (InsOrdHashSet k) where
     showsPrec d m = showParen (d > 10) $
@@ -143,8 +145,7 @@ instance Foldable InsOrdHashSet where
 
 -- | @'hashWithSalt' salt . 'toHashSet' = 'hashWithSalt' salt@.
 instance Hashable k => Hashable (InsOrdHashSet k) where
-    hashWithSalt salt (InsOrdHashSet _ m) =
-        hashWithSalt salt m
+    hashWithSalt salt = hashWithSalt salt . toHashSet
 
 instance (Eq k, Hashable k) => Exts.IsList (InsOrdHashSet k) where
     type Item (InsOrdHashSet k) = k

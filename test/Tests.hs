@@ -45,6 +45,8 @@ main = defaultMain $ testGroup "tests"
         , testProperty "issue 12 FoldableWithIndex itoList" $ issue12d
         , testProperty "issue 19 Data InsOrdHashMap" $ issue19Map
         , testProperty "issue 19 Data InsOrdHashSet" $ issue19Set
+        , testProperty "issue 19 Data InsOrdHashMap identity" $ issue19MapIdentity
+        , testProperty "issue 19 Data InsOrdHashSet identity" $ issue19SetIdentity
         ]
     ]
 
@@ -234,6 +236,23 @@ issue19Set l =
     s = InsOrdSet.fromList l
     s' = mapInts negate s
     expected = map negate (InsOrdSet.toList s)
+
+-- An identity generic transformation must yield an equal container, even
+-- when duplicate insertions or deletions have left gaps in the internal
+-- insertion stamps.
+issue19MapIdentity :: [(Int, Int)] -> [Int] -> Property
+issue19MapIdentity l ds =
+    m' === m .&&. hash m' === hash m .&&. property (InsOrd.valid m')
+  where
+    m = List.foldl' (flip InsOrd.delete) (InsOrd.fromList (l ++ l)) ds
+    m' = gmapT id m
+
+issue19SetIdentity :: [Int] -> [Int] -> Property
+issue19SetIdentity l ds =
+    s' === s .&&. hash s' === hash s .&&. property (InsOrdSet.valid s')
+  where
+    s = List.foldl' (flip InsOrdSet.delete) (InsOrdSet.fromList (l ++ l)) ds
+    s' = gmapT id s
 
 issue10 :: Property
 issue10 = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)
