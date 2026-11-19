@@ -210,7 +210,7 @@ union (InsOrdHashSet i a) (InsOrdHashSet j b) =
     mk | i >= 0xfffff || j >= 0xfffff = fromHashMapInt
        | otherwise                    = InsOrdHashSet (i + j)
 
-    b' = fmap (\k -> k + i + 1) b
+    b' = fmap (+ i) b
 
 -------------------------------------------------------------------------------
 -- Transformations
