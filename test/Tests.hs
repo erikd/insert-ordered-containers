@@ -39,6 +39,7 @@ main = defaultMain $ testGroup "tests"
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
+        , testProperty "issue 10: unionWithKey overflow" $ issue10WithKey
         , testProperty "issue 12 Foldable" $ issue12a
         , testProperty "issue 12 Traversable" $ issue12b
         , testProperty "issue 12 FoldableWithIndex ifoldr" $ issue12c
@@ -48,6 +49,7 @@ main = defaultMain $ testGroup "tests"
         , testProperty "issue 19 Data InsOrdHashMap identity" $ issue19MapIdentity
         , testProperty "issue 19 Data InsOrdHashSet identity" $ issue19SetIdentity
         , testProperty "issue 27 InsOrdHashSet Eq/Hashable ignore indices" $ issue27
+        , testProperty "InsOrdHashSet union is valid and ordered" $ setUnion
         ]
     ]
 
@@ -187,6 +189,16 @@ traverseWithKeyOrder op =
 -- Regressions
 -------------------------------------------------------------------------------
 
+-- 'unionWithKey' did not get the index repacking added to 'unionWith' for
+-- issue 10, so repeated unions overflowed the insertion stamps.
+issue10WithKey :: Property
+issue10WithKey = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)
+  where
+    m, n, p :: InsOrd.InsOrdHashMap Char Char
+    m = InsOrd.fromList  (zip "hello" "world")
+    n = iterate (\x -> InsOrd.unionWithKey (\_ a _ -> a) x x) m !! 64
+    p = InsOrd.insert '!' '!' n
+
 issue12a :: Property
 issue12a = foldr (:) [] m === "wold"
   where
@@ -267,6 +279,25 @@ issue27 salt =
     a, b :: InsOrdSet.InsOrdHashSet Int
     a = InsOrdSet.delete 2 (InsOrdSet.fromList [1, 2, 3])
     b = InsOrdSet.fromList [1, 3]
+
+-- 'InsOrdHashSet.union' used to give the right-hand set's last element a
+-- stamp equal to the counter, so the result was not 'valid' and a later
+-- 'insert' could collide with it.
+setUnion :: [Int] -> [Int] -> Int -> Property
+setUnion xs ys z =
+    InsOrdSet.toList u === expected
+    .&&. property (InsOrdSet.valid u)
+    .&&. property (InsOrdSet.valid u')
+    .&&. InsOrdSet.toList u' === expected'
+  where
+    a = InsOrdSet.fromList xs
+    b = InsOrdSet.fromList ys
+    u = InsOrdSet.union a b
+    u' = InsOrdSet.insert z u
+    expected =
+        InsOrdSet.toList a
+        ++ [ y | y <- InsOrdSet.toList b, not (InsOrdSet.member y a) ]
+    expected' = List.filter (/= z) expected ++ [z]
 
 issue10 :: Property
 issue10 = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)
