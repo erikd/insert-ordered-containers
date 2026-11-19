@@ -47,6 +47,7 @@ main = defaultMain $ testGroup "tests"
         , testProperty "issue 19 Data InsOrdHashSet" $ issue19Set
         , testProperty "issue 19 Data InsOrdHashMap identity" $ issue19MapIdentity
         , testProperty "issue 19 Data InsOrdHashSet identity" $ issue19SetIdentity
+        , testProperty "issue 27 InsOrdHashSet Eq/Hashable ignore indices" $ issue27
         ]
     ]
 
@@ -253,6 +254,19 @@ issue19SetIdentity l ds =
   where
     s = List.foldl' (flip InsOrdSet.delete) (InsOrdSet.fromList (l ++ l)) ds
     s' = gmapT id s
+
+-- Sets with the same elements in the same order must be equal and hash
+-- alike, regardless of how they were built; equality is order sensitive.
+issue27 :: Int -> Property
+issue27 salt =
+    a === b
+    .&&. a =/= InsOrdSet.fromList [3, 1]
+    .&&. hashWithSalt salt a === hashWithSalt salt b
+    .&&. hashWithSalt salt a === hashWithSalt salt (InsOrdSet.toHashSet a)
+  where
+    a, b :: InsOrdSet.InsOrdHashSet Int
+    a = InsOrdSet.delete 2 (InsOrdSet.fromList [1, 2, 3])
+    b = InsOrdSet.fromList [1, 3]
 
 issue10 :: Property
 issue10 = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)
