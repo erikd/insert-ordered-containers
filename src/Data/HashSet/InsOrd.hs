@@ -40,8 +40,9 @@ module Data.HashSet.InsOrd (
     )where
 
 import Prelude
-       (Bool, Eq ((==)), Int, const, flip, fmap, fst, id, otherwise, return,
-       snd, ($), (&&), (+), (.), (<$>), (<), (>), (>=), (||))
+       (Bool, Eq ((==)), Int, Ord (compare), const, flip, fmap, fst, id,
+       otherwise, return, snd, ($), (&&), (+), (.), (<$>), (<), (>), (>=),
+       (||))
 
 import Control.Arrow                   (first)
 import Control.DeepSeq                 (NFData (..))
@@ -115,6 +116,12 @@ instance NF.NFData1 InsOrdHashSet where
 -- internal insertion stamps are ignored.
 instance Eq k => Eq (InsOrdHashSet k) where
     a == b = toList a == toList b
+
+-- | Compares the elements lexicographically, in insertion order.
+--
+-- @since FIXME
+instance Ord k => Ord (InsOrdHashSet k) where
+    compare a b = compare (toList a) (toList b)
 
 instance Show k => Show (InsOrdHashSet k) where
     showsPrec d m = showParen (d > 10) $
