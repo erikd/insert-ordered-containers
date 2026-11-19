@@ -35,6 +35,8 @@ main = defaultMain $ testGroup "tests"
         , testProperty "aeson roundtrip" $ aesonRoundtrip
         , testProperty "show . read = id" showReadRoundtrip
         , testProperty "Eq respects ordering" eqRespectsOrdering
+        , testProperty "Ord compares entries in insertion order" ordMap
+        , testProperty "InsOrdHashSet Ord compares elements in insertion order" ordSet
         , testProperty "traverseWithKey effects in insertion order" traverseWithKeyOrder
         ]
     , testGroup "Regressions"
@@ -174,6 +176,22 @@ eqRespectsOrdering op = iom == iomRev ==> InsOrd.toList iom === InsOrd.toList io
   where
     iom = evalOpInsOrd op
     iomRev = InsOrd.fromList . reverse . InsOrd.toList $ iom
+
+ordMap :: Operation Word8 Word8 -> Operation Word8 Word8 -> Property
+ordMap opA opB =
+    compare a b === compare (InsOrd.toList a) (InsOrd.toList b)
+    .&&. (compare a b == EQ) === (a == b)
+  where
+    a = evalOpInsOrd opA
+    b = evalOpInsOrd opB
+
+ordSet :: [Word8] -> [Word8] -> Property
+ordSet xs ys =
+    compare a b === compare (InsOrdSet.toList a) (InsOrdSet.toList b)
+    .&&. (compare a b == EQ) === (a == b)
+  where
+    a = InsOrdSet.fromList xs
+    b = InsOrdSet.fromList ys
 
 traverseWithKeyOrder :: Operation Word8 Int -> Property
 traverseWithKeyOrder op =

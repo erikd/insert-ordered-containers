@@ -73,9 +73,9 @@ module Data.HashMap.Strict.InsOrd (
     ) where
 
 import Prelude
-       (Bool (..), Eq, Functor, Int, Maybe (..), all, const, flip, fmap, fst,
-       id, max, maybe, otherwise, return, seq, snd, uncurry, zipWith, ($),
-       (&&), (+), (.), (<$>), (<), (==), (>), (>=), (>>=), (||))
+       (Bool (..), Eq, Functor, Int, Maybe (..), Ord (compare), all, const,
+       flip, fmap, fst, id, max, maybe, otherwise, return, seq, snd, uncurry,
+       zipWith, ($), (&&), (+), (.), (<$>), (<), (==), (>), (>=), (>>=), (||))
 
 import Control.Applicative             (Applicative, Const (..))
 import Control.Arrow                   (first, second)
@@ -194,6 +194,12 @@ instance NF.NFData2 InsOrdHashMap  where
 
 instance (Eq k, Eq v) => Eq (InsOrdHashMap k v) where
     a == b = toList a == toList b
+
+-- | Compares the entries lexicographically, in insertion order.
+--
+-- @since FIXME
+instance (Ord k, Ord v) => Ord (InsOrdHashMap k v) where
+    compare a b = compare (toList a) (toList b)
 
 instance (Show k, Show v) => Show (InsOrdHashMap k v) where
     showsPrec d m = showParen (d > 10) $
