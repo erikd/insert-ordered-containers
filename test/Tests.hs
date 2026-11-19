@@ -39,6 +39,7 @@ main = defaultMain $ testGroup "tests"
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
+        , testProperty "issue 10: unionWithKey overflow" $ issue10WithKey
         , testProperty "issue 12 Foldable" $ issue12a
         , testProperty "issue 12 Traversable" $ issue12b
         , testProperty "issue 12 FoldableWithIndex ifoldr" $ issue12c
@@ -186,6 +187,16 @@ traverseWithKeyOrder op =
 -------------------------------------------------------------------------------
 -- Regressions
 -------------------------------------------------------------------------------
+
+-- 'unionWithKey' did not get the index repacking added to 'unionWith' for
+-- issue 10, so repeated unions overflowed the insertion stamps.
+issue10WithKey :: Property
+issue10WithKey = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)
+  where
+    m, n, p :: InsOrd.InsOrdHashMap Char Char
+    m = InsOrd.fromList  (zip "hello" "world")
+    n = iterate (\x -> InsOrd.unionWithKey (\_ a _ -> a) x x) m !! 64
+    p = InsOrd.insert '!' '!' n
 
 issue12a :: Property
 issue12a = foldr (:) [] m === "wold"

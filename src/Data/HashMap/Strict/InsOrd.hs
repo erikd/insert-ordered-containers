@@ -383,22 +383,18 @@ unionWith
     :: (Eq k, Hashable k)
     => (v -> v -> v)
     -> InsOrdHashMap k v -> InsOrdHashMap k v -> InsOrdHashMap k v
-unionWith f (InsOrdHashMap i a) (InsOrdHashMap j b) =
-    mk $ HashMap.unionWith f' a b'
-  where
-    -- the threshold is arbitrary, it meant to amortise need for packing of indices
-    mk | i > 0xfffff || j >= 0xfffff = fromHashMapP
-       | otherwise                   = InsOrdHashMap (i + j)
-    b' = fmap (incPK i) b
-    f' (P ii x) (P _ y) = P ii (f x y)
+unionWith f = unionWithKey (\_ -> f)
 
 unionWithKey
     :: (Eq k, Hashable k)
     => (k -> v -> v -> v)
     -> InsOrdHashMap k v -> InsOrdHashMap k v -> InsOrdHashMap k v
 unionWithKey f (InsOrdHashMap i a) (InsOrdHashMap j b) =
-    InsOrdHashMap (i + j) $ HashMap.unionWithKey f' a b'
+    mk $ HashMap.unionWithKey f' a b'
   where
+    -- the threshold is arbitrary, it meant to amortise need for packing of indices
+    mk | i > 0xfffff || j >= 0xfffff = fromHashMapP
+       | otherwise                   = InsOrdHashMap (i + j)
     b' = fmap (incPK i) b
     f' k (P ii x) (P _ y) = P ii (f k x y)
 
