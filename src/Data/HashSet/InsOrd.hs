@@ -40,9 +40,9 @@ module Data.HashSet.InsOrd (
     )where
 
 import Prelude
-       (Bool, Eq ((==)), Int, Ord (compare), const, flip, fmap, fst, id,
-       otherwise, return, snd, ($), (&&), (+), (.), (<$>), (<), (>), (>=),
-       (||))
+       (Bool, Eq ((==)), Int, Ord (compare, max), const, flip, fmap, fst, id,
+       otherwise, return, snd, zip, ($), (&&), (+), (.), (<$>), (<), (>),
+       (>=), (||))
 
 import Control.Arrow                   (first)
 import Control.DeepSeq                 (NFData (..))
@@ -198,8 +198,13 @@ member :: (Eq k, Hashable k) => k -> InsOrdHashSet k -> Bool
 member k = HashMap.member k . getInsOrdHashSet
 {-# INLINABLE member #-}
 
+-- | Add an element to the end of the set.
+--
+-- An element that is already present keeps its position.
 insert :: (Eq k, Hashable k) => k -> InsOrdHashSet k -> InsOrdHashSet k
-insert k (InsOrdHashSet i m) = InsOrdHashSet (i + 1) (HashMap.insert k i m)
+insert k s@(InsOrdHashSet i m)
+    | HashMap.member k m = s
+    | otherwise          = InsOrdHashSet (i + 1) (HashMap.insert k i m)
 
 delete :: (Eq k, Hashable k) => k -> InsOrdHashSet k -> InsOrdHashSet k
 delete k (InsOrdHashSet i m) = InsOrdHashSet i (HashMap.delete k m)
@@ -252,9 +257,19 @@ filter p (InsOrdHashSet i m) = InsOrdHashSet i $
 -- Conversions
 -------------------------------------------------------------------------------
 
+-- | Construct a set from a list of elements.
+--
+-- If an element occurs more than once, it keeps the position of its first
+-- occurrence.
+--
+-- >>> fromList [1, 2, 1]
+-- fromList [1,2]
 fromList :: (Eq k, Hashable k) => [k] -> InsOrdHashSet k
-fromList = mk . flip runState 0 . traverse newInt where
-    mk (m, i) = InsOrdHashSet i (HashMap.fromList m)
+fromList xs = InsOrdHashSet counter m
+  where
+    m = HashMap.fromListWith (\_ i -> i) (zip xs [0 ..])
+
+    counter = HashMap.foldl' (\i j -> max i (j + 1)) 0 m
 
 toList :: InsOrdHashSet k -> [k]
 toList
@@ -279,9 +294,6 @@ fromHashMapInt :: HashMap k Int -> InsOrdHashSet k
 fromHashMapInt = mk . flip runState 0 . traverseWithKeyOrderedBy id (\_ _ -> newInt')
   where
     mk (m, i) = InsOrdHashSet i m
-
-newInt :: a -> State Int (a, Int)
-newInt a = state $ \s -> ((a, s), s + 1)
 
 newInt' :: State Int Int
 newInt' = state $ \s -> (s, s + 1)
