@@ -38,6 +38,8 @@ main = defaultMain $ testGroup "tests"
         , testProperty "Ord compares entries in insertion order" ordMap
         , testProperty "InsOrdHashSet Ord compares elements in insertion order" ordSet
         , testProperty "traverseWithKey effects in insertion order" traverseWithKeyOrder
+        , testProperty "InsOrdHashSet fromList keeps elements in order of first occurrence" $ setFromListOrder
+        , testProperty "InsOrdHashSet fromList agrees with repeated insert" $ setFromListInsert
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
@@ -63,6 +65,20 @@ fromListValues l = InsOrd.toHashMap (InsOrd.fromList l) === HashMap.fromList l
 
 fromListInsert :: [(Word8, Int)] -> Property
 fromListInsert l = InsOrd.fromList l === List.foldl' (\m (k, v) -> InsOrd.insert k v m) InsOrd.empty l
+
+setFromListOrder :: [Word8] -> Property
+setFromListOrder l =
+    InsOrdSet.toList s === nub l .&&. property (InsOrdSet.valid s)
+  where
+    s = InsOrdSet.fromList l
+
+setFromListInsert :: [Word8] -> Property
+setFromListInsert l =
+    InsOrdSet.toList s === nub l
+    .&&. property (InsOrdSet.valid s)
+    .&&. s === InsOrdSet.fromList l
+  where
+    s = List.foldl' (flip InsOrdSet.insert) InsOrdSet.empty l
 
 toListMappendDistribute :: [(Int, Int)] -> [(Int, Int)] -> Property
 toListMappendDistribute a b = rhs === lhs
@@ -315,7 +331,7 @@ setUnion xs ys z =
     expected =
         InsOrdSet.toList a
         ++ [ y | y <- InsOrdSet.toList b, not (InsOrdSet.member y a) ]
-    expected' = List.filter (/= z) expected ++ [z]
+    expected' = nub (expected ++ [z])
 
 issue10 :: Property
 issue10 = InsOrd.elems p === "wold!" .&&. property (InsOrd.valid p)

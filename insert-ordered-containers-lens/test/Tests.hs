@@ -48,10 +48,9 @@ main = defaultMain $ testGroup "insert-ordered-containers-lens"
             let s = InsOrdSet.fromList ks :: S
             in not (InsOrdSet.member k s) ==>
                (s & contains k .~ True) === InsOrdSet.insert k s
-        -- Disabled pending #24.
-        -- , testProperty "set contains (view contains) = id" $ \ks k ->
-        --     let s = InsOrdSet.fromList ks :: S
-        --     in (s & contains k .~ (s ^. contains k)) === s
+        , testProperty "set contains (view contains) = id" $ \ks k ->
+            let s = InsOrdSet.fromList ks :: S
+            in (s & contains k .~ (s ^. contains k)) === s
         , testProperty "set contains False = delete" $ \ks k ->
             let s = InsOrdSet.fromList ks :: S
             in (s & contains k .~ False) === InsOrdSet.delete k s
@@ -62,10 +61,9 @@ main = defaultMain $ testGroup "insert-ordered-containers-lens"
             let s = InsOrdSet.fromList ks :: S
             in not (InsOrdSet.member k s) ==>
                (s & at k ?~ ()) === InsOrdSet.insert k s
-        -- Disabled pending #24.
-        -- , testProperty "set at (view at) = id" $ \ks k ->
-        --     let s = InsOrdSet.fromList ks :: S
-        --     in (s & at k .~ (s ^. at k)) === s
+        , testProperty "set at (view at) = id" $ \ks k ->
+            let s = InsOrdSet.fromList ks :: S
+            in (s & at k .~ (s ^. at k)) === s
         , testProperty "set at Nothing = delete" $ \ks k ->
             let s = InsOrdSet.fromList ks :: S
             in (s & at k .~ Nothing) === InsOrdSet.delete k s
