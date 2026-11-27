@@ -81,8 +81,11 @@ import Data.HashMap.InsOrd.Internal
 -- InsOrdHashSet
 -------------------------------------------------------------------------------
 
--- | 'HashSet' which tries its best to remember insertion order of elements.
-
+-- | A 'HashSet' that keeps its elements in insertion order.
+--
+-- A new element is added at the end. Inserting an element that is already
+-- present keeps its position. Deleting an element and inserting it again
+-- moves it to the end.
 data InsOrdHashSet k = InsOrdHashSet
     { _getIndex        :: !Int
     , getInsOrdHashSet :: !(HashMap k Int)
@@ -213,6 +216,9 @@ delete k (InsOrdHashSet i m) = InsOrdHashSet i (HashMap.delete k m)
 -- Combine
 -------------------------------------------------------------------------------
 
+-- | The union of two sets: the elements of the first set in their order,
+-- followed by the elements of the second set that are not in the first, in
+-- their order.
 union
     :: (Eq k, Hashable k)
     => InsOrdHashSet k -> InsOrdHashSet k -> InsOrdHashSet k
@@ -246,6 +252,8 @@ difference :: (Eq a, Hashable a) => InsOrdHashSet a -> InsOrdHashSet a -> InsOrd
 difference (InsOrdHashSet i a) (InsOrdHashSet _ b) =
     InsOrdHashSet i $ HashMap.difference a b
 
+-- | The intersection of two sets: the elements of the first set that are
+-- also in the second set, in the order of the first set.
 intersection :: (Eq a, Hashable a) => InsOrdHashSet a -> InsOrdHashSet a -> InsOrdHashSet a
 intersection (InsOrdHashSet i a) (InsOrdHashSet _ b) =
     InsOrdHashSet i $ HashMap.intersection a b

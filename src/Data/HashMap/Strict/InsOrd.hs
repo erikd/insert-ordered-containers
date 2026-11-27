@@ -162,8 +162,10 @@ instance Hashable a => Hashable (P a) where
 -- InsOrdHashMap
 -------------------------------------------------------------------------------
 
--- | 'HashMap' which tries its best to remember insertion order of elements.
-
+-- | A 'HashMap' that keeps its entries in insertion order.
+--
+-- A new key is added at the end. Updating the value of an existing key keeps
+-- its position. Deleting a key and inserting it again moves it to the end.
 data InsOrdHashMap k v = InsOrdHashMap
     { _getIndex        :: !Int
     , getInsOrdHashMap :: !(HashMap k (P v))
@@ -199,6 +201,8 @@ instance NFData k => NF.NFData1 (InsOrdHashMap k) where
 instance NF.NFData2 InsOrdHashMap  where
     liftRnf2 rnf1 rnf2 (InsOrdHashMap _ m) = NF.liftRnf2 rnf1 (NF.liftRnf rnf2) m
 
+-- | Equality is order sensitive: maps with the same entries in a different
+-- insertion order are not equal.
 instance (Eq k, Eq v) => Eq (InsOrdHashMap k v) where
     a == b = toList a == toList b
 
@@ -388,16 +392,15 @@ alter f k insm@(InsOrdHashMap j m) =
 -- Combine
 -------------------------------------------------------------------------------
 
--- | The union of two maps.  If a key occurs in both maps,
--- the provided function (first argument) will be used to compute the result.
---
--- Ordered traversal will go thru keys in the first map first.
+-- | Like 'union', but if a key occurs in both maps, the given function
+-- combines the two values.
 unionWith
     :: (Eq k, Hashable k)
     => (v -> v -> v)
     -> InsOrdHashMap k v -> InsOrdHashMap k v -> InsOrdHashMap k v
 unionWith f = unionWithKey (\_ -> f)
 
+-- | Like 'unionWith', but the function also receives the key.
 unionWithKey
     :: (Eq k, Hashable k)
     => (k -> v -> v -> v)
@@ -411,6 +414,9 @@ unionWithKey f (InsOrdHashMap i a) (InsOrdHashMap j b) =
     b' = fmap (incPK i) b
     f' k (P ii x) (P _ y) = P ii (f k x y)
 
+-- | The union of two maps: the entries of the first map in their order,
+-- followed by the entries of the second map whose keys are not in the first,
+-- in their order.
 union
     :: (Eq k, Hashable k)
     => InsOrdHashMap k v -> InsOrdHashMap k v -> InsOrdHashMap k v
@@ -518,17 +524,22 @@ difference
 difference (InsOrdHashMap i a) (InsOrdHashMap _ b) =
     InsOrdHashMap i $ HashMap.difference a b
 
+-- | The intersection of two maps: the entries of the first map whose keys
+-- are also in the second map, in the order of the first map.
 intersection
     :: (Eq k, Hashable k)
     => InsOrdHashMap k v -> InsOrdHashMap k w -> InsOrdHashMap k v
 intersection = intersectionWith const
 
+-- | Like 'intersection', but combines the values of both maps with the given
+-- function.
 intersectionWith
     :: (Eq k, Hashable k)
     => (v1 -> v2 -> v3)
     -> InsOrdHashMap k v1 -> InsOrdHashMap k v2 -> InsOrdHashMap k v3
 intersectionWith f = intersectionWithKey (\_ -> f)
 
+-- | Like 'intersectionWith', but the function also receives the key.
 intersectionWithKey
     :: (Eq k, Hashable k)
     => (k -> v1 -> v2 -> v3)
