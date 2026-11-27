@@ -40,7 +40,7 @@ module Data.HashSet.InsOrd (
     )where
 
 import Prelude
-       (Bool, Eq ((==)), Int, Ord (compare, max), const, flip, fmap, fst, id,
+       (Bool, Eq ((==)), Int, Ord (compare, max, min), const, flip, fmap, fst, id,
        otherwise, return, snd, zip, ($), (&&), (+), (.), (<$>), (<), (>),
        (>=), (||))
 
@@ -228,10 +228,15 @@ union (InsOrdHashSet i a) (InsOrdHashSet j b) =
 -- Transformations
 -------------------------------------------------------------------------------
 
+-- | Map a function over the elements of the set.
+--
+-- If @f@ maps several elements to the same value, the result takes the
+-- position of the earliest of them, so @map f = 'fromList' . fmap f . 'toList'@.
 map :: (Hashable b, Eq b) => (a -> b) -> InsOrdHashSet a -> InsOrdHashSet b
 map f (InsOrdHashSet i m) = InsOrdHashSet i
-    $ HashMap.fromList . fmap (first f) . HashMap.toList
+    $ HashMap.fromListWith min . fmap (first f) . HashMap.toList
     $ m
+{-# INLINABLE map #-}
 
 -------------------------------------------------------------------------------
 -- Difference and intersection

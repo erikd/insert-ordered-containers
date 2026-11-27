@@ -74,7 +74,7 @@ module Data.HashMap.Strict.InsOrd (
 
 import Prelude
        (Bool (..), Eq, Functor, Int, Maybe (..), Ord (compare), all, const,
-       flip, fmap, fst, id, max, maybe, otherwise, return, seq, snd, uncurry,
+       flip, fmap, fst, id, max, maybe, min, otherwise, return, seq, snd, uncurry,
        zipWith, ($), (&&), (+), (.), (<$>), (<), (==), (>), (>=), (>>=), (||))
 
 import Control.Applicative             (Applicative, Const (..))
@@ -137,6 +137,13 @@ getPK (P i _) = i
 getPV :: P a -> a
 getPV (P _ a) = a
 {-# INLINABLE getPV #-}
+
+-- | Combiner for 'HashMap.fromListWith' over entries in ascending index
+-- order: keep the position of the old (earlier) entry and the value of the
+-- new (later) one.
+keepIndex :: P a -> P a -> P a
+keepIndex (P _ v) (P i _) = P i v
+{-# INLINE keepIndex #-}
 
 incPK :: Int -> P a -> P a
 incPK i (P j x) = P (i + j) x
@@ -419,15 +426,46 @@ unions = F.foldl' union empty
 -------------------------------------------------------------------------------
 
 -- | Order preserving mapping of keys.
+--
+-- If @f@ maps several keys to the same key, the result takes the position of
+-- the earliest of them and the value of the latest, so
+-- @mapKeys f = 'fromList' . fmap (first f) . 'toList'@.
 mapKeys :: (Eq k', Hashable k') => (k -> k') -> InsOrdHashMap k v -> InsOrdHashMap k' v
 mapKeys f (InsOrdHashMap i m) = InsOrdHashMap i $
-    HashMap.fromList . fmap (first f) . HashMap.toList $ m
+    mergeKeys . fmap (first f) . HashMap.toList $ m
+{-# INLINABLE mapKeys #-}
 
+-- | Order preserving traversal of keys.
+--
+-- The effects are performed in insertion order. Keys that @f@ maps to the
+-- same key are merged as in 'mapKeys'.
 traverseKeys
     :: (Eq k', Hashable k', Applicative f)
     => (k -> f k') -> InsOrdHashMap k v -> f (InsOrdHashMap k' v)
-traverseKeys f (InsOrdHashMap i m) = InsOrdHashMap i . HashMap.fromList <$>
-    traverse (\(k, v) -> (\k' -> (k', v)) <$> f k) (HashMap.toList m)
+traverseKeys f (InsOrdHashMap i m) =
+    -- The entries are traversed in ascending index order, so the cheaper
+    -- 'keepIndex' suffices here instead of 'mergeKeys'.
+    InsOrdHashMap i . HashMap.fromListWith keepIndex <$>
+        traverse (\(k, p) -> (\k' -> (k', p)) <$> f k)
+            (sortBy (comparing (getPK . snd)) (HashMap.toList m))
+{-# INLINABLE traverseKeys #-}
+
+-- | Build a map from entries, in any order, whose keys may have been merged.
+-- A merged key takes the earliest position and the value of the latest entry.
+--
+-- While merging, each key carries its earliest position and its latest entry.
+-- Keeping only a single 'P' would lose track of which position the value came
+-- from, and the result would then depend on the order of the list. For a list
+-- already in ascending index order, use 'keepIndex' instead.
+mergeKeys :: (Eq k, Hashable k) => [(k, P v)] -> HashMap k (P v)
+mergeKeys = HashMap.map finish . HashMap.fromListWith merge . fmap start
+  where
+    start (k, p) = (k, P (getPK p) p)
+
+    merge (P a p) (P b q) = P (min a b) (if getPK p > getPK q then p else q)
+
+    finish (P a (P _ v)) = P a v
+{-# INLINABLE mergeKeys #-}
 
 map :: (v1 -> v2) -> InsOrdHashMap k v1 -> InsOrdHashMap k v2
 map = fmap
@@ -575,8 +613,6 @@ fromList xs = InsOrdHashMap counter m
 
     -- Forcing the P here avoids handing a thunk to fromListWith.
     indexed i (k, v) = let p = P i v in p `seq` (k, p)
-
-    keepIndex (P _ v) (P i _) = P i v
 
     counter = HashMap.foldl' (\i (P j _) -> max i (j + 1)) 0 m
 {-# INLINABLE fromList #-}
