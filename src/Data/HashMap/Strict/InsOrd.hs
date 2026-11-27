@@ -468,7 +468,7 @@ mergeKeys = HashMap.map finish . HashMap.fromListWith merge . fmap start
 {-# INLINABLE mergeKeys #-}
 
 map :: (v1 -> v2) -> InsOrdHashMap k v1 -> InsOrdHashMap k v2
-map = fmap
+map f (InsOrdHashMap i m) = InsOrdHashMap i $ HashMap.map (fmap f) m
 
 mapWithKey :: (k -> v1 -> v2) -> InsOrdHashMap k v1 -> InsOrdHashMap k v2
 mapWithKey f (InsOrdHashMap i m) =
@@ -498,8 +498,7 @@ unorderedFoldMapWithKey f m =
 
 -- | More efficient than 'traverse', when traversing in insertion order is not important.
 unorderedTraverse :: Applicative f => (a -> f b) -> InsOrdHashMap k a -> f (InsOrdHashMap k b)
-unorderedTraverse f (InsOrdHashMap i m) =
-    InsOrdHashMap i <$> (traverse . traverse) f m
+unorderedTraverse f = unorderedTraverseWithKey (\_ -> f)
 
 -- | More efficient than `traverseWithKey`, when traversing in insertion order is not important.
 unorderedTraverseWithKey :: Applicative f => (k -> a -> f b) -> InsOrdHashMap k a -> f (InsOrdHashMap k b)

@@ -3,6 +3,7 @@ module Main (main) where
 import Prelude        ()
 import Prelude.Compat
 
+import Control.Exception       (ErrorCall (..), evaluate, try)
 import Data.Bifunctor          (first)
 import Data.Data               (Data, cast, gmapT)
 import Data.Functor.Identity   (Identity (..))
@@ -51,6 +52,10 @@ main = defaultMain $ testGroup "tests"
         , testProperty "issue 34 InsOrdHashSet map example" issue34Set
         , testProperty "issue 34 mapKeys example" issue34MapKeys
         , testProperty "issue 34 traverseKeys example" issue34TraverseKeys
+        ]
+    , testGroup "Value strictness"
+        [ testProperty "map" $ mapStrict
+        , testProperty "unorderedTraverse" $ unorderedTraverseStrict
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
@@ -286,6 +291,26 @@ traverseWithKeyOrder op =
   where
     iom = evalOpInsOrd op
     (effects, iom') = InsOrd.traverseWithKey (\k v -> ([(k, v)], v + 1)) iom
+
+-------------------------------------------------------------------------------
+-- Value strictness
+-------------------------------------------------------------------------------
+
+-- | Evaluating the map to WHNF evaluates its values.
+forcesValues :: InsOrd.InsOrdHashMap k v -> Property
+forcesValues m = ioProperty $ do
+    r <- try (evaluate m)
+    return $ case r of
+        Left (ErrorCall _) -> True
+        Right _            -> False
+
+mapStrict :: NonEmptyList (Word8, Int) -> Property
+mapStrict (NonEmpty l) =
+    forcesValues (InsOrd.map (\_ -> undefined :: Int) (InsOrd.fromList l))
+
+unorderedTraverseStrict :: NonEmptyList (Word8, Int) -> Property
+unorderedTraverseStrict (NonEmpty l) = forcesValues $ runIdentity $
+    InsOrd.unorderedTraverse (\_ -> Identity (undefined :: Int)) (InsOrd.fromList l)
 
 -------------------------------------------------------------------------------
 -- Regressions
