@@ -55,7 +55,6 @@ import Data.List                       (nub, sortBy)
 import Data.Monoid                     (Monoid (..))
 import Data.Ord                        (comparing)
 import Data.Semigroup                  (Semigroup (..))
-import Data.Traversable                (Traversable (traverse))
 import Text.ParserCombinators.ReadPrec (prec)
 import Text.Read
        (Lexeme (..), Read (..), lexP, parens, readListPrecDefault)
@@ -283,9 +282,11 @@ toList
     . HashMap.toList
     . getInsOrdHashSet
 
+-- | Convert a 'HashSet'. The insertion order of the result is the order of
+-- 'HashSet.toList', which is unspecified.
 fromHashSet :: HashSet k -> InsOrdHashSet k
-fromHashSet = mk . flip runState 0 . traverse (const newInt') . HashSet.toMap where
-    mk (m, i) = InsOrdHashSet i m
+fromHashSet s = case numberWith const (HashSet.toMap s) of
+    (n, m) -> InsOrdHashSet n m
 
 toHashSet :: InsOrdHashSet k -> HashSet k
 toHashSet (InsOrdHashSet _ m) =

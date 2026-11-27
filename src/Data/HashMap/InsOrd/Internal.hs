@@ -2,10 +2,13 @@ module Data.HashMap.InsOrd.Internal where
 
 import Prelude hiding (filter, foldr, lookup, map, null)
 
-import Data.List (sortBy)
-import Data.Ord  (comparing)
+import Control.Monad.ST (runST)
+import Data.List        (sortBy)
+import Data.Ord         (comparing)
+import Data.STRef       (newSTRef, readSTRef, writeSTRef)
 
 import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Lazy   as HashMapLazy
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.IntMap.Strict  as IntMap
 
@@ -34,3 +37,24 @@ traverseWithKeyOrderedBy ix f m =
     refill rs =
         let im = IntMap.fromDistinctAscList rs
         in HashMap.map (\a -> im IntMap.! ix a) m
+
+-------------------------------------------------------------------------------
+-- Numbering
+-------------------------------------------------------------------------------
+
+-- | Replace each value @a@ by @f i a@, where @i@ counts the entries from 0 in
+-- the map's internal order. Also returns the number of entries. The new
+-- values are evaluated to WHNF.
+numberWith :: (Int -> a -> b) -> HashMap k a -> (Int, HashMap k b)
+numberWith f m = runST $ do
+    counter <- newSTRef 0
+    -- Data.HashMap.Strict.traverseWithKey would evaluate the values too, but
+    -- in ST it allocates twice as much as the lazy one with ($!):
+    -- https://github.com/haskell-unordered-containers/unordered-containers/issues/608
+    m' <- HashMapLazy.traverseWithKey (\_ a -> do
+        i <- readSTRef counter
+        writeSTRef counter $! i + 1
+        return $! f i a) m
+    n <- readSTRef counter
+    return (n, m')
+{-# INLINE numberWith #-}
