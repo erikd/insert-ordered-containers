@@ -16,8 +16,10 @@ import Data.Word               (Word8)
 import Text.Read               (readMaybe)
 
 import qualified Data.Aeson                 as Aeson
+import qualified Data.HashMap.Lazy          as HashMapLazy
 import qualified Data.HashMap.Strict        as HashMap
 import qualified Data.HashMap.Strict.InsOrd as InsOrd
+import qualified Data.HashSet               as HashSet
 import qualified Data.HashSet.InsOrd        as InsOrdSet
 import qualified Data.List                  as List
 
@@ -31,6 +33,10 @@ main = defaultMain $ testGroup "tests"
         [ testProperty "fromList keeps keys in order of first occurrence" $ fromListKeys
         , testProperty "fromList keeps the last value of each key" $ fromListValues
         , testProperty "fromList agrees with repeated insert" $ fromListInsert
+        , testProperty "toHashMap . fromHashMap = id" $ fromHashMapRoundtrip
+        , testProperty "fromHashMap keeps the order of HashMap.toList" $ fromHashMapOrder
+        , testProperty "InsOrdHashSet toHashSet . fromHashSet = id" $ fromHashSetRoundtrip
+        , testProperty "InsOrdHashSet fromHashSet keeps the order of HashSet.toList" $ fromHashSetOrder
         , testProperty "toList distributes over mappend" $ toListMappendDistribute
         , testProperty "behaves like HashMap" $ operationModel
         , testProperty "valid" $ validProperty
@@ -56,6 +62,7 @@ main = defaultMain $ testGroup "tests"
     , testGroup "Value strictness"
         [ testProperty "map" $ mapStrict
         , testProperty "unorderedTraverse" $ unorderedTraverseStrict
+        , testProperty "fromHashMap" $ fromHashMapStrict
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
@@ -81,6 +88,30 @@ fromListValues l = InsOrd.toHashMap (InsOrd.fromList l) === HashMap.fromList l
 
 fromListInsert :: [(Word8, Int)] -> Property
 fromListInsert l = InsOrd.fromList l === List.foldl' (\m (k, v) -> InsOrd.insert k v m) InsOrd.empty l
+
+fromHashMapRoundtrip :: [(Word8, Int)] -> Property
+fromHashMapRoundtrip l =
+    InsOrd.toHashMap iom === m .&&. property (InsOrd.valid iom)
+  where
+    m = HashMap.fromList l
+    iom = InsOrd.fromHashMap m
+
+fromHashMapOrder :: [(Int, Int)] -> Property
+fromHashMapOrder l = InsOrd.toList (InsOrd.fromHashMap m) === HashMap.toList m
+  where
+    m = HashMap.fromList l
+
+fromHashSetRoundtrip :: [Word8] -> Property
+fromHashSetRoundtrip l =
+    InsOrdSet.toHashSet ios === s .&&. property (InsOrdSet.valid ios)
+  where
+    s = HashSet.fromList l
+    ios = InsOrdSet.fromHashSet s
+
+fromHashSetOrder :: [Int] -> Property
+fromHashSetOrder l = InsOrdSet.toList (InsOrdSet.fromHashSet s) === HashSet.toList s
+  where
+    s = HashSet.fromList l
 
 setFromListOrder :: [Word8] -> Property
 setFromListOrder l =
@@ -311,6 +342,10 @@ mapStrict (NonEmpty l) =
 unorderedTraverseStrict :: NonEmptyList (Word8, Int) -> Property
 unorderedTraverseStrict (NonEmpty l) = forcesValues $ runIdentity $
     InsOrd.unorderedTraverse (\_ -> Identity (undefined :: Int)) (InsOrd.fromList l)
+
+fromHashMapStrict :: NonEmptyList Word8 -> Property
+fromHashMapStrict (NonEmpty ks) = forcesValues $
+    InsOrd.fromHashMap (HashMapLazy.fromList [(k, undefined :: Int) | k <- ks])
 
 -------------------------------------------------------------------------------
 -- Regressions

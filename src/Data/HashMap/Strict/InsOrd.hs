@@ -630,10 +630,13 @@ toRevList
     . HashMap.toList
     . getInsOrdHashMap
 
+-- | Convert a 'HashMap'. The insertion order of the result is the order of
+-- 'HashMap.toList', which is unspecified.
+--
+-- The values are evaluated to WHNF.
 fromHashMap :: HashMap k v -> InsOrdHashMap k v
-fromHashMap = mk . flip runState 0 . traverse newP
-  where
-    mk (m, i) = InsOrdHashMap i m
+fromHashMap m = case numberWith P m of
+    (n, m') -> InsOrdHashMap n m'
 
 toHashMap :: InsOrdHashMap k v -> HashMap k v
 toHashMap (InsOrdHashMap _ m) = fmap getPV m
