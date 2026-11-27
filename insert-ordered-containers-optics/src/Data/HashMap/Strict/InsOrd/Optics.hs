@@ -33,7 +33,8 @@ instance (Eq k, Hashable k) => At (InsOrdHashMap k v) where
             Just v' -> InsOrd.insert k v' m
     {-# INLINE at #-}
 
--- | This is a slight lie, as roundtrip doesn't preserve ordering.
+-- | An isomorphism only up to insertion order: converting to a 'HashMap' and
+-- back replaces the insertion order with the unspecified order of the 'HashMap'.
 hashMap :: Iso (InsOrdHashMap k a) (InsOrdHashMap k b) (HashMap k a) (HashMap k b)
 hashMap = iso InsOrd.toHashMap InsOrd.fromHashMap
 

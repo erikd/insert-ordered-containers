@@ -36,6 +36,7 @@ instance (Eq a, Hashable a) => Contains (InsOrdHashSet a) where
         if b then InsOrd.insert k s else InsOrd.delete k s
     {-# INLINE contains #-}
 
--- | This is a slight lie, as roundtrip doesn't preserve ordering.
+-- | An isomorphism only up to insertion order: converting to a 'HashSet' and
+-- back replaces the insertion order with the unspecified order of the 'HashSet'.
 hashSet :: Iso' (InsOrdHashSet a) (HashSet a)
 hashSet = iso InsOrd.toHashSet InsOrd.fromHashSet
