@@ -3,7 +3,9 @@ module Main (main) where
 import Prelude        ()
 import Prelude.Compat
 
+import Data.Bifunctor          (first)
 import Data.Data               (Data, cast, gmapT)
+import Data.Functor.Identity   (Identity (..))
 import Data.Foldable.WithIndex (ifoldr, itoList)
 import Data.Hashable           (Hashable (..))
 import Data.List               (nub)
@@ -40,6 +42,15 @@ main = defaultMain $ testGroup "tests"
         , testProperty "traverseWithKey effects in insertion order" traverseWithKeyOrder
         , testProperty "InsOrdHashSet fromList keeps elements in order of first occurrence" $ setFromListOrder
         , testProperty "InsOrdHashSet fromList agrees with repeated insert" $ setFromListInsert
+        ]
+    , testGroup "Key-merging transformations (issue 34)"
+        [ testProperty "InsOrdHashSet map = fromList . fmap f . toList" setMapMerge
+        , testProperty "mapKeys = fromList . fmap (first f) . toList" mapKeysMerge
+        , testProperty "traverseKeys = fromList . fmap (first f) . toList" traverseKeysMerge
+        , testProperty "traverseKeys effects in insertion order" traverseKeysOrder
+        , testProperty "issue 34 InsOrdHashSet map example" issue34Set
+        , testProperty "issue 34 mapKeys example" issue34MapKeys
+        , testProperty "issue 34 traverseKeys example" issue34TraverseKeys
         ]
     , testGroup "Regressions"
         [ testProperty "issue 10: union overflow" $ issue10
@@ -79,6 +90,63 @@ setFromListInsert l =
     .&&. s === InsOrdSet.fromList l
   where
     s = List.foldl' (flip InsOrdSet.insert) InsOrdSet.empty l
+
+-- A function that merges many inputs, so that collisions are common.
+merge :: Word8 -> Word8
+merge = (`div` 16)
+
+setMapMerge :: [Word8] -> Property
+setMapMerge l =
+    InsOrdSet.toList s' === InsOrdSet.toList (InsOrdSet.fromList (map merge (InsOrdSet.toList s)))
+    .&&. property (InsOrdSet.valid s')
+  where
+    s  = InsOrdSet.fromList l
+    s' = InsOrdSet.map merge s
+
+mapKeysMerge :: [(Word8, Int)] -> Property
+mapKeysMerge l =
+    InsOrd.toList m' === InsOrd.toList (InsOrd.fromList (map (first merge) (InsOrd.toList m)))
+    .&&. property (InsOrd.valid m')
+  where
+    m  = InsOrd.fromList l
+    m' = InsOrd.mapKeys merge m
+
+traverseKeysMerge :: [(Word8, Int)] -> Property
+traverseKeysMerge l =
+    InsOrd.toList m' === InsOrd.toList (InsOrd.fromList (map (first merge) (InsOrd.toList m)))
+    .&&. property (InsOrd.valid m')
+  where
+    m  = InsOrd.fromList l
+    m' = runIdentity (InsOrd.traverseKeys (Identity . merge) m)
+
+traverseKeysOrder :: [(Word8, Int)] -> Property
+traverseKeysOrder l = fst (InsOrd.traverseKeys (\k -> ([k], merge k)) m) === InsOrd.keys m
+  where
+    m = InsOrd.fromList l
+
+issue34Set :: Property
+issue34Set = InsOrdSet.toList (InsOrdSet.map f a) === [1, 0]
+    .&&. InsOrdSet.toList (InsOrdSet.map f b) === [1, 0]
+  where
+    f = (`mod` 2) :: Int -> Int
+    a = InsOrdSet.fromList [1, 2, 3]
+    b = InsOrdSet.fromList [3, 2, 1]
+
+issue34MapKeys :: Property
+issue34MapKeys = InsOrd.toList (InsOrd.mapKeys f a) === [(1, 'z'), (0, 'y')]
+    .&&. InsOrd.toList (InsOrd.mapKeys f b) === [(1, 'z'), (0, 'y')]
+  where
+    f = (`mod` 2) :: Int -> Int
+    a = InsOrd.fromList [(1, 'x'), (2, 'y'), (3, 'z')]
+    b = InsOrd.fromList [(3, 'x'), (2, 'y'), (1, 'z')]
+
+issue34TraverseKeys :: Property
+issue34TraverseKeys = go a === ([1, 2, 3], [(1, 'z'), (0, 'y')])
+    .&&. go b === ([3, 2, 1], [(1, 'z'), (0, 'y')])
+  where
+    go = fmap InsOrd.toList . InsOrd.traverseKeys (\k -> ([k], k `mod` 2 :: Int))
+    a = InsOrd.fromList [(1, 'x'), (2, 'y'), (3, 'z')]
+    b = InsOrd.fromList [(3, 'x'), (2, 'y'), (1, 'z')]
 
 toListMappendDistribute :: [(Int, Int)] -> [(Int, Int)] -> Property
 toListMappendDistribute a b = rhs === lhs
